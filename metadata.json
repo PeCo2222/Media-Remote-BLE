@@ -1,0 +1,6 @@
+{
+  "name": "Media Remote",
+  "description": "BLE media remote control and HID trackpad/keyboard bridge for ESP32-S3 PC playback.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
