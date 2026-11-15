@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.model.BleConfig
 import com.example.model.BlePreset
+import com.example.model.PcKeyboardLayout
 import com.example.model.RemoteActionId
 import com.example.ui.theme.BleConnectedCyan
 import com.example.ui.theme.BleErrorCoral
@@ -76,6 +77,8 @@ fun SettingsScreen(
     onSaveUuids: (service: String, write: String, notify: String) -> Unit,
     onUpdateFlags: (autoDetect: Boolean, appendNewline: Boolean, writeNoResp: Boolean, filterNamed: Boolean) -> Unit,
     onSensitivityChange: (Float) -> Unit,
+    onPcLayoutChange: (PcKeyboardLayout) -> Unit,
+    onSendEnterAfterTextChange: (Boolean) -> Unit,
     onPayloadChange: (RemoteActionId, String) -> Unit,
     onTestSkipCalibration: (x: Int, y: Int) -> Unit,
     onSaveSkipCalibration: (screen: String, x: Int, y: Int) -> Unit,
@@ -231,8 +234,15 @@ fun SettingsScreen(
                                 }
                             )
                             SettingToggleRow(
-                                title = "Append newline (\\n)",
-                                subtitle = "Terminate each ASCII command with a line feed",
+                                title = "Append newline (Enter) after text",
+                                subtitle = "Automatically press Enter on PC after sending typed text",
+                                checked = config.sendEnterAfterText,
+                                testTag = "switch_send_enter_after_text",
+                                onCheckedChange = onSendEnterAfterTextChange
+                            )
+                            SettingToggleRow(
+                                title = "BLE packet delimiter (\\n)",
+                                subtitle = "Terminate each BLE command packet with a line feed for ESP32 parsing",
                                 checked = config.appendNewline,
                                 testTag = "switch_append_newline",
                                 onCheckedChange = {
@@ -275,6 +285,37 @@ fun SettingsScreen(
                                 ),
                                 modifier = Modifier.testTag("slider_trackpad_sensitivity")
                             )
+
+                            Text(
+                                text = "PC Keyboard Layout (Windows HID)",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "ESP32 USB HID uses US QWERTY scancodes. Pick your PC's Windows layout so AZERTY/QWERTY keys match.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextMuted
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                PcKeyboardLayout.entries.forEach { layout ->
+                                    FilterChip(
+                                        selected = config.pcKeyboardLayout == layout,
+                                        onClick = { onPcLayoutChange(layout) },
+                                        label = { Text(layout.shortLabel, maxLines = 1) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MediaCyan.copy(alpha = 0.2f),
+                                            selectedLabelColor = MediaCyan,
+                                            labelColor = TextSecondary
+                                        ),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("settings_layout_${layout.name.lowercase()}")
+                                    )
+                                }
+                            }
 
                             if (config.savedDeviceAddress.isNotBlank()) {
                                 Row(

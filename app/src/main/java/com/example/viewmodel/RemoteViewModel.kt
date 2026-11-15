@@ -9,6 +9,9 @@ import com.example.model.BleConfig
 import com.example.model.BleConnectionState
 import com.example.model.BleDiscoveredDevice
 import com.example.model.BlePreset
+import com.example.model.HidCommandChunk
+import com.example.model.KeyboardLayoutMapper
+import com.example.model.PcKeyboardLayout
 import com.example.model.RemoteActionId
 import com.example.model.RemoteMode
 import kotlinx.coroutines.Job
@@ -28,6 +31,7 @@ data class RemoteUiState(
     val activeMode: RemoteMode = RemoteMode.MEDIA_REMOTE,
     val statusLine: String = "Ready",
     val lastSentCommand: String? = null,
+    val lastTypedText: String? = null,
     val lastRxMessage: String? = null,
     val isBluetoothEnabled: Boolean = true,
     val hasBlePermissions: Boolean = false,
@@ -43,6 +47,7 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     private val _activeMode = MutableStateFlow(RemoteMode.MEDIA_REMOTE)
     private val _statusOverride = MutableStateFlow<String?>(null)
     private val _lastSentCommand = MutableStateFlow<String?>(null)
+    private val _lastTypedText = MutableStateFlow<String?>(null)
     private val _hasPermissions = MutableStateFlow(bleManager.hasRequiredPermissions())
     private val _showScannerSheet = MutableStateFlow(false)
 
@@ -65,6 +70,7 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
         _activeMode,
         _statusOverride,
         _lastSentCommand,
+        _lastTypedText,
         _hasPermissions,
         _showScannerSheet,
     ) { values ->
@@ -77,8 +83,9 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
         val mode = values[5] as RemoteMode
         val overrideStatus = values[6] as String?
         val lastSent = values[7] as String?
-        val perms = values[8] as Boolean
-        val showSheet = values[9] as Boolean
+        val lastTyped = values[8] as String?
+        val perms = values[9] as Boolean
+        val showSheet = values[10] as Boolean
 
         val derivedStatus = overrideStatus ?: when (conn) {
             is BleConnectionState.Connected -> "Connected · ${conn.deviceName}"
@@ -99,6 +106,7 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
             activeMode = mode,
             statusLine = derivedStatus,
             lastSentCommand = lastSent,
+            lastTypedText = lastTyped,
             lastRxMessage = rx,
             isBluetoothEnabled = btEnabled,
             hasBlePermissions = perms,
@@ -211,8 +219,39 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun sendRawText(text: String) {
-        if (text.isBlank()) return
-        dispatchCommand("TXT:$text", label = "Text (${text.take(12)})")
+        if (text.isEmpty()) return
+        if (uiState.value.connectionState !is BleConnectionState.Connected) {
+            flashStatus("Not connected — tap BLE icon below")
+            openScannerSheet()
+            return
+        }
+        val config = uiState.value.config
+        val layout = config.pcKeyboardLayout
+        val chunks = KeyboardLayoutMapper.encodeText(text, layout)
+        var allSent = true
+        for (chunk in chunks) {
+            val cmd = when (chunk) {
+                is HidCommandChunk.TextChunk -> "TXT:${chunk.text}"
+                is HidCommandChunk.RawKeyChunk -> "KRAW:${chunk.modifier},${chunk.keycode}"
+            }
+            if (!bleManager.sendCommand(cmd)) {
+                allSent = false
+            } else {
+                _lastSentCommand.value = cmd
+            }
+        }
+        if (allSent && config.sendEnterAfterText) {
+            val enterCmd = config.payloadFor(RemoteActionId.ENTER)
+            if (bleManager.sendCommand(enterCmd)) {
+                _lastSentCommand.value = "$enterCmd (auto)"
+            }
+        }
+        if (allSent) {
+            _lastTypedText.value = text
+        }
+        flashStatus(
+            if (allSent) "Sent (${layout.shortLabel}): ${text.take(16)}" else "BLE write failed"
+        )
     }
 
     fun sendTrackpadDelta(dx: Float, dy: Float) {
@@ -330,6 +369,18 @@ class RemoteViewModel(application: Application) : AndroidViewModel(application) 
     fun updateTrackpadSensitivity(sensitivity: Float) {
         viewModelScope.launch {
             settingsRepository.updateTrackpadSensitivity(sensitivity)
+        }
+    }
+
+    fun updatePcKeyboardLayout(layout: PcKeyboardLayout) {
+        viewModelScope.launch {
+            settingsRepository.updatePcKeyboardLayout(layout)
+        }
+    }
+
+    fun updateSendEnterAfterText(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateSendEnterAfterText(enabled)
         }
     }
 

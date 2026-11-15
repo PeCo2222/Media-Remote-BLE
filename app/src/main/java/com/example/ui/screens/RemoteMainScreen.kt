@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -67,16 +68,24 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.model.BleConnectionState
+import com.example.model.PcKeyboardLayout
 import com.example.model.RemoteActionId
 import com.example.model.RemoteMode
 import com.example.ui.components.BleConnectionOrbButton
@@ -111,6 +120,8 @@ fun RemoteMainScreen(
     onTrackpadClick: (Boolean) -> Unit,
     onScrollDrag: (Float) -> Unit,
     onSendText: (String) -> Unit,
+    onSelectPcLayout: (PcKeyboardLayout) -> Unit,
+    onToggleAutoEnter: (Boolean) -> Unit,
     onBleOrbClick: () -> Unit,
     onOpenScanner: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -187,6 +198,11 @@ fun RemoteMainScreen(
                                     onScrollDrag = onScrollDrag,
                                     onAction = onAction,
                                     onSendText = onSendText,
+                                    lastTypedText = uiState.lastTypedText,
+                                    selectedPcLayout = uiState.config.pcKeyboardLayout,
+                                    autoEnterEnabled = uiState.config.sendEnterAfterText,
+                                    onSelectPcLayout = onSelectPcLayout,
+                                    onToggleAutoEnter = onToggleAutoEnter,
                                     modifier = Modifier.weight(1f)
                                 )
                             }
@@ -224,6 +240,11 @@ fun RemoteMainScreen(
                                         onScrollDrag = onScrollDrag,
                                         onAction = onAction,
                                         onSendText = onSendText,
+                                        lastTypedText = uiState.lastTypedText,
+                                        selectedPcLayout = uiState.config.pcKeyboardLayout,
+                                        autoEnterEnabled = uiState.config.sendEnterAfterText,
+                                        onSelectPcLayout = onSelectPcLayout,
+                                        onToggleAutoEnter = onToggleAutoEnter,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
@@ -231,14 +252,17 @@ fun RemoteMainScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    val imeOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+                    if (!imeOpen) {
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                    // Bottom Status & BLE Connect Footer
-                    RemoteBottomFooter(
-                        uiState = uiState,
-                        onBleOrbClick = onBleOrbClick,
-                        onOpenScanner = onOpenScanner
-                    )
+                        // Bottom Status & BLE Connect Footer
+                        RemoteBottomFooter(
+                            uiState = uiState,
+                            onBleOrbClick = onBleOrbClick,
+                            onOpenScanner = onOpenScanner
+                        )
+                    }
                 }
             }
         }
@@ -456,21 +480,25 @@ private fun TrackpadAndKeysPanel(
     onScrollDrag: (Float) -> Unit,
     onAction: (RemoteActionId) -> Unit,
     onSendText: (String) -> Unit,
+    lastTypedText: String?,
+    selectedPcLayout: PcKeyboardLayout,
+    autoEnterEnabled: Boolean,
+    onSelectPcLayout: (PcKeyboardLayout) -> Unit,
+    onToggleAutoEnter: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var textDraft by remember { mutableStateOf("") }
+    var textDraft by remember { mutableStateOf(TextFieldValue("")) }
     val haptic = LocalHapticFeedback.current
 
     Column(
-        modifier = modifier,
+        modifier = modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // Trackpad + Edge Scroll Strip
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .height(220.dp),
+                .height(190.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Main Mouse Touchpad Surface
@@ -645,6 +673,90 @@ private fun TrackpadAndKeysPanel(
             }
         }
 
+        // PC Keyboard Layout Selector (matches Windows PC layout, independent of phone keyboard)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = "PC:",
+                style = MaterialTheme.typography.labelMedium,
+                color = TextSecondary
+            )
+            PcKeyboardLayout.entries.forEach { layout ->
+                val selected = layout == selectedPcLayout
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onSelectPcLayout(layout) }
+                        .testTag("pc_layout_${layout.name.lowercase()}"),
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (selected) MediaCyan.copy(alpha = 0.22f) else ObsidianSurface,
+                    border = BorderStroke(
+                        1.dp,
+                        if (selected) MediaCyan else ObsidianBorder
+                    )
+                ) {
+                    Box(
+                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = layout.shortLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (selected) BleConnectedCyan else TextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+            Surface(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { onToggleAutoEnter(!autoEnterEnabled) }
+                    .testTag("toggle_auto_enter"),
+                shape = RoundedCornerShape(10.dp),
+                color = if (autoEnterEnabled) MediaCyan.copy(alpha = 0.22f) else ObsidianSurface,
+                border = BorderStroke(
+                    1.dp,
+                    if (autoEnterEnabled) MediaCyan else ObsidianBorder
+                )
+            ) {
+                Box(
+                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (autoEnterEnabled) "↵ ON" else "↵ OFF",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (autoEnterEnabled) BleConnectedCyan else TextSecondary,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+
+        if (!lastTypedText.isNullOrEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = ObsidianSurface,
+                border = BorderStroke(1.dp, ObsidianBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Last sent: $lastTypedText",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = BleConnectedCyan,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+            }
+        }
+
         // Send Text to PC USB Keyboard
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -656,12 +768,21 @@ private fun TrackpadAndKeysPanel(
                 onValueChange = { textDraft = it },
                 placeholder = { Text("Type text to PC keyboard...", color = TextMuted) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                textStyle = TextStyle(
+                    fontFamily = FontFamily.SansSerif,
+                    fontSize = 16.sp,
+                    color = TextPrimary
+                ),
+                keyboardOptions = KeyboardOptions(
+                    autoCorrectEnabled = false,
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Send
+                ),
                 keyboardActions = KeyboardActions(
                     onSend = {
-                        if (textDraft.isNotBlank()) {
-                            onSendText(textDraft)
-                            textDraft = ""
+                        if (textDraft.text.isNotEmpty()) {
+                            onSendText(textDraft.text)
+                            textDraft = TextFieldValue("", TextRange.Zero)
                         }
                     }
                 ),
@@ -671,7 +792,8 @@ private fun TrackpadAndKeysPanel(
                     focusedContainerColor = ObsidianSurface,
                     unfocusedContainerColor = ObsidianSurface,
                     focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
+                    unfocusedTextColor = TextPrimary,
+                    cursorColor = MediaCyan
                 ),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
@@ -683,9 +805,9 @@ private fun TrackpadAndKeysPanel(
                     .size(54.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .clickable {
-                        if (textDraft.isNotBlank()) {
-                            onSendText(textDraft)
-                            textDraft = ""
+                        if (textDraft.text.isNotEmpty()) {
+                            onSendText(textDraft.text)
+                            textDraft = TextFieldValue("", TextRange.Zero)
                         }
                     }
                     .testTag("keyboard_send_button"),

@@ -470,6 +470,17 @@ void handleCommand(String cmd) {
   } else if (cmd.startsWith("TXT:")) {
     Keyboard.print(cmd.substring(4));
     sendBleStatus("Typed text");
+  } else if (cmd.startsWith("KRAW:")) {
+    int c = cmd.indexOf(',');
+    if (c > 5) {
+      KeyReport report = {0};
+      report.modifiers = (uint8_t)cmd.substring(5, c).toInt();
+      report.keys[0] = (uint8_t)cmd.substring(c + 1).toInt();
+      Keyboard.sendReport(&report);
+      delay(12);
+      KeyReport empty = {0};
+      Keyboard.sendReport(&empty);
+    }
   }
 }
 

@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.model.BleConfig
 import com.example.model.BlePreset
+import com.example.model.PcKeyboardLayout
 import com.example.model.RemoteActionId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -25,11 +26,13 @@ class SettingsRepository(private val context: Context) {
         val NOTIFY_UUID = stringPreferencesKey("notify_uuid")
         val AUTO_DETECT = booleanPreferencesKey("auto_detect_writable")
         val APPEND_NEWLINE = booleanPreferencesKey("append_newline")
+        val SEND_ENTER_AFTER_TEXT = booleanPreferencesKey("send_enter_after_text")
         val WRITE_NO_RESPONSE = booleanPreferencesKey("write_no_response")
         val FILTER_NAMED = booleanPreferencesKey("filter_named_only")
         val SAVED_ADDRESS = stringPreferencesKey("saved_device_address")
         val SAVED_NAME = stringPreferencesKey("saved_device_name")
         val TRACKPAD_SENSITIVITY = floatPreferencesKey("trackpad_sensitivity")
+        val PC_KEYBOARD_LAYOUT = stringPreferencesKey("pc_keyboard_layout")
         val DEFAULT_SKIP_SCREEN = stringPreferencesKey("default_skip_screen")
         val LG_X = intPreferencesKey("lg_x")
         val LG_Y = intPreferencesKey("lg_y")
@@ -51,11 +54,15 @@ class SettingsRepository(private val context: Context) {
             notifyCharacteristicUuid = prefs[Keys.NOTIFY_UUID] ?: BlePreset.NORDIC_UART.notifyUuid,
             autoDetectWritable = prefs[Keys.AUTO_DETECT] ?: true,
             appendNewline = prefs[Keys.APPEND_NEWLINE] ?: true,
+            sendEnterAfterText = prefs[Keys.SEND_ENTER_AFTER_TEXT] ?: true,
             writeWithoutResponse = prefs[Keys.WRITE_NO_RESPONSE] ?: false,
             filterNamedOnly = prefs[Keys.FILTER_NAMED] ?: true,
             savedDeviceAddress = prefs[Keys.SAVED_ADDRESS] ?: "",
             savedDeviceName = prefs[Keys.SAVED_NAME] ?: "",
             trackpadSensitivity = prefs[Keys.TRACKPAD_SENSITIVITY] ?: 1.6f,
+            pcKeyboardLayout = prefs[Keys.PC_KEYBOARD_LAYOUT]?.let { raw ->
+                runCatching { PcKeyboardLayout.valueOf(raw) }.getOrNull()
+            } ?: PcKeyboardLayout.US_QWERTY,
             defaultSkipScreen = prefs[Keys.DEFAULT_SKIP_SCREEN] ?: "lg",
             lgX = prefs[Keys.LG_X] ?: 990,
             lgY = prefs[Keys.LG_Y] ?: 350,
@@ -111,6 +118,18 @@ class SettingsRepository(private val context: Context) {
     suspend fun updateTrackpadSensitivity(sensitivity: Float) {
         context.dataStore.edit { prefs ->
             prefs[Keys.TRACKPAD_SENSITIVITY] = sensitivity.coerceIn(0.5f, 3.5f)
+        }
+    }
+
+    suspend fun updatePcKeyboardLayout(layout: PcKeyboardLayout) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.PC_KEYBOARD_LAYOUT] = layout.name
+        }
+    }
+
+    suspend fun updateSendEnterAfterText(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.SEND_ENTER_AFTER_TEXT] = enabled
         }
     }
 

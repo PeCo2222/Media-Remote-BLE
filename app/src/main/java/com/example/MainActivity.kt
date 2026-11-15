@@ -71,6 +71,8 @@ fun MediaRemoteApp(
                 onTrackpadClick = viewModel::sendClick,
                 onScrollDrag = viewModel::sendScrollDelta,
                 onSendText = viewModel::sendRawText,
+                onSelectPcLayout = viewModel::updatePcKeyboardLayout,
+                onToggleAutoEnter = viewModel::updateSendEnterAfterText,
                 onBleOrbClick = {
                     if (!uiState.hasBlePermissions) {
                         viewModel.openScannerSheet()
@@ -118,6 +120,8 @@ fun MediaRemoteApp(
                 onSaveUuids = viewModel::updateUuids,
                 onUpdateFlags = viewModel::updateFlags,
                 onSensitivityChange = viewModel::updateTrackpadSensitivity,
+                onPcLayoutChange = viewModel::updatePcKeyboardLayout,
+                onSendEnterAfterTextChange = viewModel::updateSendEnterAfterText,
                 onPayloadChange = viewModel::updateActionPayload,
                 onTestSkipCalibration = viewModel::testSkipCalibration,
                 onSaveSkipCalibration = viewModel::saveSkipCalibration,
