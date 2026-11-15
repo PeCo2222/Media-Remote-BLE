@@ -124,6 +124,7 @@ Voor een 100% consistente muispositie bij elke *Skip Ad*-klik:
 | `SCR:dy` | Verticaal scrollwiel |
 | `ESC` / `TAB` / `ENTER` / `SPACE` | Directe toetsaanslagen |
 | `TXT:<tekst>` | Typt willekeurige tekst via USB Keyboard |
+| `KRAW:<mod>,<key>` | Raw USB HID keycode (o.a. `@`, `#`, `<`, `>`, `\` op AZERTY) |
 
 ---
 
@@ -137,6 +138,9 @@ Voor een 100% consistente muispositie bij elke *Skip Ad*-klik:
 │   │   ├── model/               # Remote-acties, BLE-configuratie & verbindingsstatus
 │   │   ├── viewmodel/           # RemoteViewModel & trackpad delta-throttling
 │   │   └── ui/screens/          # RemoteMainScreen, BleScannerSheet, SettingsScreen, HelpScreen
+├── esp32/
+│   └── ESP32S3_BLE_MediaRemote/
+│       └── ESP32S3_BLE_MediaRemote.ino   # ESP32-S3 BLE + USB HID sketch voor Arduino IDE
 └── README.md                    # Projectdocumentatie (BLE setup)
 ```
 
