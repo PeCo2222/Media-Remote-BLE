@@ -1,5 +1,9 @@
 # ESP32-S3 USB HID & BLE Media Remote
 
+<p align="center">
+  <img src="public/assets/aistudio/image_3a5b2401.png" alt="ESP32-S3 USB HID & BLE Media Remote overzicht: Android Media Remote app via BLE naar ESP32-S3 en USB-OTG naar Windows-pc" width="540" />
+</p>
+
 Een draadloze afstandsbediening op basis van een **ESP32-S3 N16R8** en de **Media Remote** Android-app (verbonden via **Bluetooth Low Energy / BLE**). De ESP32-S3 sluit via de native **USB-OTG-poort** aan op je Windows-pc en gedraagt zich als een standaard bedrade USB-muis, USB-toetsenbord en media-controller — zonder dat je pc zelf Bluetooth nodig heeft en zonder Wi-Fi, vast IP-adres of `secrets.h`.
 
 Je kunt de pc bedienen via de **Android BLE-app** (knoppenremote, trackpad, scrollwiel en toetsenbord-invoer) én via optionele **fysieke drukknoppen (GPIO)**.
